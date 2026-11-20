@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FORM SATHI — Purpose-Built Citizen Forms & Cloud QR Passes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #F7F5F0;
+      --ink: #12171D;
+      --civic-blue: #0F2C59;
+      --saffron: #D96B27;
+      --emerald: #146C43;
+    }
+    body {
+      background-color: var(--paper);
+      color: var(--ink);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .font-serif-editorial { font-family: 'Instrument Serif', serif; }
+    .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+    .enc-card {
+      background: #FFFFFF;
+      border: 1px solid #DFDBD2;
+      box-shadow: 0 2px 12px rgba(18, 23, 29, 0.04);
+    }
+    input, select, textarea {
+      border: 1px solid #CFCBC2;
+      background-color: #FCFBF9;
+      transition: all 0.15s ease;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--civic-blue);
+      background-color: #FFFFFF;
+      box-shadow: 0 0 0 3px rgba(15, 44, 89, 0.1);
+    }
+    .step-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+    }
+    .cat-card-active {
+      border-color: #0F2C59 !important;
+      background-color: #F0F4FA !important;
+      box-shadow: 0 4px 14px rgba(15, 44, 89, 0.12);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- ========================================================= -->
+  <!-- VIEW 1: SCANNED CITIZEN PASS VIEWER (Opens via QR Link)   -->
+  <!-- ========================================================= -->
+  <div id="scannedPassView" class="hidden min-h-screen bg-[#F7F5F0] py-8 px-4">
+    <div class="max-w-xl mx-auto">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded bg-[#0F2C59] text-white flex items-center justify-center font-serif-editorial text-lg">FS</div>
+          <span class="font-bold text-xs uppercase tracking-wider text-[#0F2C59]">FormSathi Verified Pass</span>
+        </div>
+        <button onclick="exitScannedView()" class="text-xs font-semibold px-3 py-1.5 rounded bg-white border border-stone-300 text-stone-700 hover:bg-stone-100">
+          ← Open FormSathi App
+        </button>
+      </div>
+
+      <div class="enc-card rounded-2xl overflow-hidden border-2 border-[#0F2C59]">
+        <div class="bg-[#0F2C59] text-white p-6">
+          <div class="flex items-center justify-between mb-2">
+            <span id="viewCategoryBadge" class="step-badge uppercase text-amber-300 font-bold">✓ VERIFIED CITIZEN PASS</span>
+            <span id="viewPassId" class="font-mono-code text-xs px-2.5 py-1 rounded bg-white/15">FS-0000</span>
+          </div>
+          <h1 id="viewHolderName" class="font-serif-editorial text-3xl sm:text-4xl">Citizen Name</h1>
+          <p id="viewPassMeta" class="text-xs text-blue-200 font-mono-code mt-1">Cloud: formsaathi-777</p>
+        </div>
+
+        <div class="p-6 bg-white space-y-5">
+          <div id="viewFieldsGrid" class="grid sm:grid-cols-2 gap-3.5"></div>
+
+          <div class="pt-4 border-t border-stone-200 flex flex-wrap items-center justify-between gap-3">
+            <span class="text-[11px] text-stone-500">Verified via FormSathi Cloud Infrastructure</span>
+            <button onclick="copyAllScannedText()" class="px-4 py-2 rounded-lg bg-[#146C43] hover:bg-[#115937] text-white text-xs font-semibold">
+              📋 Copy All Details
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- VIEW 2: MAIN APPLICATION & DEDICATED FORMS                -->
+  <!-- ========================================================= -->
+  <div id="mainPortalView" class="flex-1 flex flex-col">
+
+    <!-- Top Masthead -->
+    <header class="border-b border-[#DFDBD2] bg-white sticky top-0 z-40">
+      <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded bg-[#0F2C59] text-white flex items-center justify-center font-serif-editorial text-2xl tracking-wide">
+            FS
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold tracking-wider text-sm uppercase text-[#0F2C59]">Form Sathi</span>
+              <span class="step-badge px-2 py-0.5 rounded bg-[#F0EDE6] text-stone-700 font-semibold">VOL. I · CLOUD QR PASS</span>
+            </div>
+            <p class="text-xs text-stone-500">Purpose-Built Citizen Forms · Cloud-Synced · Instant QR</p>
+          </div>
+        </div>
+
+        <!-- Google Sign-In & Cloud Status -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <div id="cloudStatusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-900 border border-amber-200">
+            <span id="cloudStatusDot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            <span id="cloudStatusText">Connecting Cloud...</span>
+          </div>
+
+          <button onclick="signInWithGoogle()" id="googleLoginBtn" class="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-white border border-stone-300 text-stone-800 hover:bg-stone-50 shadow-sm transition flex items-center gap-2">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z"/><path fill="#FBBC05" d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z"/></svg>
+            <span id="googleBtnLabel">Continue with Google</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 py-7 flex-1 w-full">
+
+      <!-- STEP 1: CHOOSE PURPOSE-BUILT FORM -->
+      <section class="mb-7">
+        <div class="flex flex-wrap items-end justify-between gap-2 mb-3">
+          <div>
+            <span class="step-badge uppercase text-[#D96B27] font-bold">Step 1 · Select Service Form</span>
+            <h1 class="font-serif-editorial text-3xl sm:text-4xl text-[#0F2C59]">What Do You Need a QR Pass For?</h1>
+          </div>
+          <p class="text-xs text-stone-500">Each form asks <strong>only</strong> the questions required for that specific service.</p>
+        </div>
+
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3.5" id="categorySelector">
+          <!-- Option 1: Online Exam -->
+          <button type="button" onclick="selectCategory('exam')" data-cat="exam" class="cat-card cat-card-active text-left p-4 rounded-xl border-2 border-[#DFDBD2] bg-white hover:border-[#0F2C59] transition">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-2xl">🎓</span>
+              <span id="badge-exam" class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-stone-100 text-stone-600">Not Saved</span>
+            </div>
+            <div class="font-bold text-sm text-[#0F2C59]">Online Exam &amp; Admission</div>
+            <p class="text-xs text-stone-500 mt-1 leading-relaxed">NTA, UPSC, SSC, JEE, CUET. Full academic &amp; center form — no bank/PAN clutter.</p>
+          </button>
+
+          <!-- Option 2: Banking & KYC -->
+          <button type="button" onclick="selectCategory('bank')" data-cat="bank" class="cat-card text-left p-4 rounded-xl border-2 border-[#DFDBD2] bg-white hover:border-[#0F2C59] transition">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-2xl">🏦</span>
+              <span id="badge-bank" class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-stone-100 text-stone-600">Not Saved</span>
+            </div>
+            <div class="font-bold text-sm text-[#0F2C59]">Banking &amp; Financial KYC</div>
+            <p class="text-xs text-stone-500 mt-1 leading-relaxed">Bank account, Demat, Loan &amp; Tax KYC. Includes PAN, income &amp; nominee details.</p>
+          </button>
+
+          <!-- Option 3: Govt Scheme & Policy -->
+          <button type="button" onclick="selectCategory('scheme')" data-cat="scheme" class="cat-card text-left p-4 rounded-xl border-2 border-[#DFDBD2] bg-white hover:border-[#0F2C59] transition">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-2xl">🏛️</span>
+              <span id="badge-scheme" class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-stone-100 text-stone-600">Not Saved</span>
+            </div>
+            <div class="font-bold text-sm text-[#0F2C59]">Govt Policy &amp; Welfare Scheme</div>
+            <p class="text-xs text-stone-500 mt-1 leading-relaxed">Scholarships, PM-Kisan, Ayushman, Ration. Includes certificates &amp; DBT bank.</p>
+          </button>
+
+          <!-- Option 4: Basic Citizen Identity -->
+          <button type="button" onclick="selectCategory('identity')" data-cat="identity" class="cat-card text-left p-4 rounded-xl border-2 border-[#DFDBD2] bg-white hover:border-[#0F2C59] transition">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-2xl">🪪</span>
+              <span id="badge-identity" class="text-[10px] font-mono-code px-2 py-0.5 rounded bg-stone-100 text-stone-600">Not Saved</span>
+            </div>
+            <div class="font-bold text-sm text-[#0F2C59]">Basic Citizen ID &amp; Address</div>
+            <p class="text-xs text-stone-500 mt-1 leading-relaxed">Quick everyday verification pass for travel, visitor entry &amp; basic forms.</p>
+          </button>
+        </div>
+      </section>
+
+      <!-- STEP 2 & 3 WORKSPACE: LEFT = FULL START-TO-END FORM | RIGHT = DEDICATED QR PASS -->
+      <div class="grid lg:grid-cols-12 gap-7 items-start">
+
+        <!-- LEFT (7 Cols): Dynamic Start-to-End Form Container -->
+        <div class="lg:col-span-7 enc-card rounded-xl p-6">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[#ECE8DF] pb-4 mb-5">
+            <div>
+              <span id="formStepTag" class="step-badge uppercase text-[#0F2C59] font-bold">Step 2 · Complete Start-to-End Form</span>
+              <h2 id="activeFormTitle" class="font-serif-editorial text-2xl sm:text-3xl text-[#12171D]">Online Exam &amp; Admission Application Form</h2>
+              <p id="activeFormSubtitle" class="text-xs text-stone-500 mt-0.5">Complete candidate particulars from personal identity to academic records.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="fillDemoForActiveCategory()" class="text-xs font-semibold px-3 py-1.5 rounded bg-[#F0EDE6] text-[#0F2C59] hover:bg-[#e5e0d5] transition">
+                ✨ Auto-Fill Demo Data
+              </button>
+              <button type="button" onclick="resetActiveForm()" class="text-xs font-medium px-2.5 py-1.5 rounded border border-stone-300 text-stone-600 hover:bg-stone-100 transition">
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <!-- Dynamic Form Fields Injected Here -->
+          <form id="dynamicPurposeForm" class="space-y-6">
+            <div id="dynamicFieldsRoot" class="space-y-6"></div>
+
+            <div class="pt-4 border-t border-[#ECE8DF] flex flex-wrap items-center justify-between gap-3">
+              <div class="text-xs text-stone-500">
+                Saves to <span class="font-mono-code font-semibold text-[#0F2C59]">formsaathi-777</span> Cloud Vault
+              </div>
+              <button type="submit" id="saveAndMintBtn" class="w-full sm:w-auto px-6 py-3 rounded-lg bg-[#0F2C59] hover:bg-[#193f7a] text-white font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2">
+                <span>☁️ Save Form &amp; Generate Dedicated QR</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- RIGHT (5 Cols): Dedicated QR Pass Card -->
+        <div class="lg:col-span-5 space-y-6 lg:sticky lg:top-20">
+
+          <div class="enc-card rounded-xl overflow-hidden border-2 border-[#0F2C59]">
+            <div class="bg-[#0F2C59] text-white px-5 py-3.5 flex items-center justify-between">
+              <div>
+                <div id="qrCardHeaderTag" class="step-badge uppercase text-amber-300 font-bold">Step 3 · Online Exam QR Pass</div>
+                <div id="qrCardHeaderTitle" class="font-serif-editorial text-xl tracking-wide">FormSathi Exam Pass</div>
+              </div>
+              <span id="passIdBadge" class="font-mono-code text-xs px-2.5 py-1 rounded bg-white/15 text-white">
+                FS-WAITING
+              </span>
+            </div>
+
+            <div class="p-5 bg-white">
+              <!-- Validity Window -->
+              <div class="mb-4">
+                <label class="block text-xs font-bold uppercase tracking-wider text-stone-500 mb-1.5">
+                  QR Pass Validity Window
+                </label>
+                <select id="qrValidity" onchange="refreshCurrentQR()" class="w-full rounded-lg px-3 py-2 text-xs font-semibold text-stone-800">
+                  <option value="15m">⏱️ 15 Minutes (Cyber Café / Exam Center Kiosk)</option>
+                  <option value="24h">📅 24 Hours (Single-Day Submission)</option>
+                  <option value="permanent">♾️ Permanent Citizen Pass</option>
+                </select>
+              </div>
+
+              <!-- Live Scannable QR Box -->
+              <div class="bg-[#FAF8F4] border border-dashed border-[#BFB9AE] rounded-xl p-5 flex flex-col items-center justify-center text-center">
+                <div id="qrcodeContainer" class="bg-white p-3.5 rounded-lg shadow-sm border border-stone-200 flex items-center justify-center min-h-[236px] min-w-[236px]">
+                  <canvas id="qrCanvas" class="hidden"></canvas>
+                  <span id="qrPlaceholder" class="text-xs text-stone-400 max-w-[175px]">Complete &amp; save this form on the left to mint its dedicated QR Pass</span>
+                </div>
+
+                <div class="mt-3.5">
+                  <div id="qrHolderName" class="font-bold text-base text-[#0F2C59]">No Record Saved Yet</div>
+                  <div id="qrMetaLine" class="text-xs font-mono-code text-stone-500 mt-0.5">Category: Online Exam · Waiting</div>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="grid grid-cols-2 gap-2.5 mt-4">
+                <button type="button" onclick="downloadQRPng()" class="py-2.5 px-3 rounded-lg bg-[#146C43] hover:bg-[#115937] text-white font-semibold text-xs transition flex items-center justify-center gap-1.5">
+                  ⬇️ Download QR PNG
+                </button>
+                <button type="button" onclick="previewScannedPass()" class="py-2.5 px-3 rounded-lg border border-[#0F2C59] text-[#0F2C59] hover:bg-[#0F2C59] hover:text-white font-semibold text-xs transition flex items-center justify-center gap-1.5">
+                  📱 Preview Scan View
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- GitHub + Google Sign-In Hosting Note -->
+          <div class="enc-card rounded-xl p-4 bg-[#FAF8F4]">
+            <div class="step-badge uppercase font-bold text-[#0F2C59] mb-1.5">🌐 Live Mobile Scan Setup (GitHub Pages)</div>
+            <p class="text-xs text-stone-600 leading-relaxed">
+              This QR encodes a direct web URL (<span class="font-mono-code text-[11px] bg-white px-1 rounded border">#pass=...</span>). Once hosted on <strong>GitHub Pages</strong>, scanning with <strong>Google Lens</strong> opens the clean mobile Citizen Pass card automatically—and any user can click <strong>Continue with Google</strong> at the top to load their saved forms on any device.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <footer class="mt-14 pt-8 border-t border-[#DFDBD2] text-xs text-stone-600">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <div class="font-bold text-[#0F2C59] uppercase tracking-wider">
+              FORM SATHI · ENCYCLOPAEDIA VOLUME I · DIGITAL PUBLIC INFRASTRUCTURE
+            </div>
+            <p class="text-stone-500 mt-1">Purpose-Specific Forms · Firebase Cloud Vault · Open-Source Civic Tech</p>
+          </div>
+          <div class="md:text-right">
+            <div class="font-semibold text-stone-800">Contributors &amp; Authors</div>
+            <div class="text-stone-600 mt-0.5">Abhinav Singh · Mradul Goel · Aditya Bhardwaj · Ayush Shukla</div>
+          </div>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-[#12171D] text-white text-xs font-medium px-4 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50"></div>
+
+  <!-- Firebase Modular SDK + Purpose Form Schemas -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+    import {
+      getAuth,
+      signInAnonymously,
+      onAuthStateChanged,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      setDoc,
+      getDoc,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyATRnNp1X7NeGF1MrB8bQ239y4CGZLjN5U",
+      authDomain: "formsaathi-777.firebaseapp.com",
+      projectId: "formsaathi-777",
+      storageBucket: "formsaathi-777.firebasestorage.app",
+      messagingSenderId: "925138295348",
+      appId: "1:925138295348:web:77f7bd241a2b71657c0861"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const googleProvider = new GoogleAuthProvider();
+
+    // =========================================================
+    // PURPOSE-SPECIFIC START-TO-END FORM DEFINITIONS
+    // =========================================================
+    const FORM_SCHEMAS = {
+      exam: {
+        title: "Online Exam & Admission Application Form",
+        subtitle: "Complete start-to-end form for NTA, UPSC, SSC, JEE, CUET & State Entrance Portals.",
+        passLabel: "Online Exam QR Pass",
+        sections: [
+          {
+            code: "A",
+            heading: "Candidate Personal Identity",
+            fields: [
+              { id: "fullName", label: "Candidate Full Name (As per Class 10th Certificate) *", type: "text", placeholder: "e.g., Aditya Bhardwaj", required: true },
+              { id: "dob", label: "Date of Birth *", type: "date", required: true },
+              { id: "gender", label: "Gender *", type: "select", options: ["Male", "Female", "Other"] },
+              { id: "category", label: "Reservation Category *", type: "select", options: ["General (UR)", "OBC-NCL", "EWS", "SC", "ST"] },
+              { id: "fatherName", label: "Father's / Guardian's Name *", type: "text", placeholder: "e.g., Rameshwar Bhardwaj", required: true },
+              { id: "motherName", label: "Mother's Name *", type: "text", placeholder: "e.g., Kavita Bhardwaj", required: true },
+              { id: "pwdStatus", label: "PwD (Benchmark Disability) Status", type: "select", options: ["No", "Yes (40% or above)"] },
+              { id: "nationality", label: "Nationality", type: "text", placeholder: "Indian" }
+            ]
+          },
+          {
+            code: "B",
+            heading: "Contact & Correspondence Address",
+            fields: [
+              { id: "mobile", label: "Candidate Mobile Number *", type: "tel", placeholder: "+91 98370 44120", required: true },
+              { id: "email", label: "Candidate Email ID *", type: "email", placeholder: "candidate@example.in", required: true },
+              { id: "address", label: "Complete Postal Address *", type: "text", placeholder: "House/Street, Locality, City", full: true, required: true },
+              { id: "domicileState", label: "Domicile / Home State *", type: "text", placeholder: "e.g., Uttar Pradesh", required: true },
+              { id: "pincode", label: "PIN Code *", type: "text", placeholder: "281502", required: true }
+            ]
+          },
+          {
+            code: "C",
+            heading: "Academic Qualifications (Class 10th, 12th & Higher)",
+            fields: [
+              { id: "tenthBoard", label: "Class 10th Board & Passing Year *", type: "text", placeholder: "CBSE · 2024", required: true },
+              { id: "tenthRollPct", label: "Class 10th Roll No. & Percentage/CGPA *", type: "text", placeholder: "Roll: 1428910 · 94.2%", required: true },
+              { id: "twelfthBoard", label: "Class 12th Board & Passing Year *", type: "text", placeholder: "CBSE · 2026", required: true },
+              { id: "twelfthRollPct", label: "Class 12th Roll No. & Stream/Marks *", type: "text", placeholder: "PCM · 92.0%", required: true },
+              { id: "gradDetails", label: "Graduation / Current Degree (If Applicable)", type: "text", placeholder: "e.g., B.Tech 1st Year (Appearing)", full: true }
+            ]
+          },
+          {
+            code: "D",
+            heading: "Exam Center & Photo ID Verification",
+            fields: [
+              { id: "examCenters", label: "Preferred Exam Cities (Choice 1, 2, 3) *", type: "text", placeholder: "1. Mathura, 2. Agra, 3. New Delhi", required: true },
+              { id: "examPhotoId", label: "Photo ID Proof Type & Number (PAN / Voter / School ID)", type: "text", placeholder: "e.g., Voter ID / College ID No." }
+            ]
+          }
+        ],
+        demo: {
+          fullName: "Aditya Bhardwaj", dob: "2006-08-14", gender: "Male", category: "General (UR)",
+          fatherName: "Rameshwar Bhardwaj", motherName: "Kavita Bhardwaj", pwdStatus: "No", nationality: "Indian",
+          mobile: "+91 98370 44120", email: "aditya.exam@formsathi.in",
+          address: "Radhakund Bypass Road, Near Goverdhan Station, Mathura", domicileState: "Uttar Pradesh", pincode: "281502",
+          tenthBoard: "CBSE · 2024", tenthRollPct: "Roll: 1482910 · 94.2%",
+          twelfthBoard: "CBSE · 2026", twelfthRollPct: "Science (PCM) · 92.0%",
+          gradDetails: "B.Tech Undergraduate · 1st Year",
+          examCenters: "1. Mathura, 2. Agra, 3. New Delhi", examPhotoId: "College ID · FS-2026-881"
+        }
+      },
+
+      bank: {
+        title: "Banking, Demat & Financial KYC Form",
+        subtitle: "Complete start-to-end financial KYC form for opening Bank Accounts, Demat, or Loan applications.",
+        passLabel: "Banking & Tax KYC QR Pass",
+        sections: [
+          {
+            code: "A",
+            heading: "Applicant Identity & Family Details",
+            fields: [
+              { id: "fullName", label: "Account Holder Full Name (As per PAN) *", type: "text", placeholder: "e.g., Aditya Bhardwaj", required: true },
+              { id: "dob", label: "Date of Birth *", type: "date", required: true },
+              { id: "gender", label: "Gender *", type: "select", options: ["Male", "Female", "Other"] },
+              { id: "maritalStatus", label: "Marital Status *", type: "select", options: ["Single", "Married", "Other"] },
+              { id: "fatherName", label: "Father's Full Name *", type: "text", placeholder: "e.g., Rameshwar Bhardwaj", required: true },
+              { id: "motherName", label: "Mother's Maiden / Full Name *", type: "text", placeholder: "e.g., Kavita Bhardwaj", required: true }
+            ]
+          },
+          {
+            code: "B",
+            heading: "Tax & Regulatory KYC Particulars",
+            fields: [
+              { id: "pan", label: "Permanent Account Number (PAN) *", type: "text", placeholder: "BVKPB4821M", required: true },
+              { id: "ckycRef", label: "CKYC / Masked ID Reference (Optional)", type: "text", placeholder: "Masked Ref Only" },
+              { id: "occupation", label: "Occupation Type *", type: "select", options: ["Student", "Self-Employed / Business", "Salaried (Private)", "Government Service", "Agriculture"] },
+              { id: "annualIncome", label: "Gross Annual Income (INR) *", type: "text", placeholder: "e.g., 4,80,000", required: true }
+            ]
+          },
+          {
+            code: "C",
+            heading: "Contact & Registered Address",
+            fields: [
+              { id: "mobile", label: "Registered Mobile Number *", type: "tel", placeholder: "+91 98370 44120", required: true },
+              { id: "email", label: "Email Address for Statements *", type: "email", placeholder: "aditya.kyc@formsathi.in", required: true },
+              { id: "address", label: "Permanent & Correspondence Address *", type: "text", placeholder: "Full Address with District & State", full: true, required: true },
+              { id: "pincode", label: "PIN Code *", type: "text", placeholder: "281502", required: true },
+              { id: "taxResidency", label: "Country of Tax Residency (FATCA)", type: "text", placeholder: "India" }
+            ]
+          },
+          {
+            code: "D",
+            heading: "Existing Bank Reference & Nominee Details",
+            fields: [
+              { id: "accountType", label: "Requested / Existing Account Type", type: "select", options: ["Savings Account", "Current Account (Business)", "Demat & Trading", "Fixed Deposit / Loan"] },
+              { id: "existingBankIfsc", label: "Existing Bank Account & IFSC (If Linking)", type: "text", placeholder: "SBI · 38920194821 · SBIN0002418" },
+              { id: "nomineeName", label: "Nominee Full Name *", type: "text", placeholder: "e.g., Kavita Bhardwaj", required: true },
+              { id: "nomineeRelation", label: "Relationship with Nominee *", type: "text", placeholder: "e.g., Mother", required: true }
+            ]
+          }
+        ],
+        demo: {
+          fullName: "Aditya Bhardwaj", dob: "2006-08-14", gender: "Male", maritalStatus: "Single",
+          fatherName: "Rameshwar Bhardwaj", motherName: "Kavita Bhardwaj",
+          pan: "BVKPB4821M", ckycRef: "CKYC-XXXX-7391", occupation: "Self-Employed / Business", annualIncome: "4,80,000",
+          mobile: "+91 98370 44120", email: "aditya.kyc@formsathi.in",
+          address: "Radhakund Bypass Road, Near Goverdhan Station, Mathura, UP", pincode: "281502", taxResidency: "India",
+          accountType: "Current Account (Business)", existingBankIfsc: "SBI · 38920194821 · SBIN0002418",
+          nomineeName: "Kavita Bhardwaj", nomineeRelation: "Mother"
+        }
+      },
+
+      scheme: {
+        title: "Government Policy & Welfare Scheme Form",
+        subtitle: "Complete start-to-end form for Scholarships, PM-Kisan, Ayushman Bharat, Housing & State Subsidies.",
+        passLabel: "Govt Scheme QR Pass",
+        sections: [
+          {
+            code: "A",
+            heading: "Beneficiary & Household Identity",
+            fields: [
+              { id: "fullName", label: "Beneficiary Full Name *", type: "text", placeholder: "e.g., Rameshwar Bhardwaj", required: true },
+              { id: "dob", label: "Date of Birth *", type: "date", required: true },
+              { id: "gender", label: "Gender *", type: "select", options: ["Male", "Female", "Other"] },
+              { id: "category", label: "Social Category *", type: "select", options: ["General", "OBC", "SC", "ST", "Minority"] },
+              { id: "fatherName", label: "Father's / Husband's Name *", type: "text", placeholder: "e.g., Hariom Bhardwaj", required: true },
+              { id: "familyMembers", label: "Total Family Members in Household", type: "text", placeholder: "e.g., 4 Members" }
+            ]
+          },
+          {
+            code: "B",
+            heading: "Income, Caste & Ration Card Certificates",
+            fields: [
+              { id: "annualIncome", label: "Annual Family Income (INR) *", type: "text", placeholder: "e.g., 1,80,000", required: true },
+              { id: "incomeCertNo", label: "Income Certificate Number *", type: "text", placeholder: "e.g., UP-INC-2026-994812", required: true },
+              { id: "casteDomicileCert", label: "Domicile / Caste Certificate Number", type: "text", placeholder: "e.g., UP-DOM-2026-441029" },
+              { id: "rationCardType", label: "Ration Card Category & Number", type: "text", placeholder: "e.g., PHH / Antyodaya · 2140981234" }
+            ]
+          },
+          {
+            code: "C",
+            heading: "Residential Location (Rural / Urban)",
+            fields: [
+              { id: "mobile", label: "Beneficiary Mobile Number *", type: "tel", placeholder: "+91 94122 81904", required: true },
+              { id: "areaType", label: "Area Classification *", type: "select", options: ["Rural (Gram Panchayat)", "Urban (Nagar Nigam / Palika)"] },
+              { id: "address", label: "Village / Ward, Block, District & State *", type: "text", placeholder: "Radhakund Bypass, Goverdhan Block, Mathura, UP", full: true, required: true },
+              { id: "pincode", label: "PIN Code *", type: "text", placeholder: "281502", required: true }
+            ]
+          },
+          {
+            code: "D",
+            heading: "Direct Benefit Transfer (DBT) Bank Account",
+            fields: [
+              { id: "bankName", label: "Bank Name & Branch *", type: "text", placeholder: "State Bank of India, Goverdhan", required: true },
+              { id: "bankAccount", label: "DBT Bank Account Number *", type: "text", placeholder: "38920194821", required: true },
+              { id: "ifsc", label: "IFSC Code *", type: "text", placeholder: "SBIN0002418", required: true },
+              { id: "dbtStatus", label: "NPCI / DBT Mapper Status", type: "select", options: ["Active & Seeded", "Pending Verification"] }
+            ]
+          }
+        ],
+        demo: {
+          fullName: "Rameshwar Bhardwaj", dob: "1976-04-10", gender: "Male", category: "General",
+          fatherName: "Hariom Bhardwaj", familyMembers: "4 Members",
+          annualIncome: "1,80,000", incomeCertNo: "UP-INC-2026-994812",
+          casteDomicileCert: "UP-DOM-2026-441029", rationCardType: "PHH · 2140981234",
+          mobile: "+91 94122 81904", areaType: "Urban (Nagar Nigam / Palika)",
+          address: "Radhakund Bypass Road, Near Goverdhan Station, Mathura, Uttar Pradesh", pincode: "281502",
+          bankName: "State Bank of India · Goverdhan", bankAccount: "38920194821", ifsc: "SBIN0002418", dbtStatus: "Active & Seeded"
+        }
+      },
+
+      identity: {
+        title: "Basic Citizen Identity & Address Form",
+        subtitle: "Lightweight start-to-end identity pass for visitor registration, travel & basic forms.",
+        passLabel: "Basic Citizen ID QR Pass",
+        sections: [
+          {
+            code: "A",
+            heading: "Core Identity Particulars",
+            fields: [
+              { id: "fullName", label: "Full Name *", type: "text", placeholder: "e.g., Aditya Bhardwaj", required: true },
+              { id: "dob", label: "Date of Birth *", type: "date", required: true },
+              { id: "gender", label: "Gender *", type: "select", options: ["Male", "Female", "Other"] },
+              { id: "fatherName", label: "Father's / Mother's Name *", type: "text", placeholder: "e.g., Rameshwar Bhardwaj", required: true }
+            ]
+          },
+          {
+            code: "B",
+            heading: "Contact & Permanent Address",
+            fields: [
+              { id: "mobile", label: "Mobile Number *", type: "tel", placeholder: "+91 98370 44120", required: true },
+              { id: "email", label: "Email Address *", type: "email", placeholder: "aditya@formsathi.in", required: true },
+              { id: "address", label: "Full Address *", type: "text", placeholder: "House, Street, City, State", full: true, required: true },
+              { id: "pincode", label: "PIN Code *", type: "text", placeholder: "281502", required: true },
+              { id: "voterOrDl", label: "Voter ID / Driving Licence Number", type: "text", placeholder: "UP1420250089412" }
+            ]
+          }
+        ],
+        demo: {
+          fullName: "Aditya Bhardwaj", dob: "2006-08-14", gender: "Male", fatherName: "Rameshwar Bhardwaj",
+          mobile: "+91 98370 44120", email: "aditya@formsathi.in",
+          address: "Radhakund Bypass Road, Near Goverdhan Station, Mathura, Uttar Pradesh",
+          pincode: "281502", voterOrDl: "UP1420250089412"
+        }
+      }
+    };
+
+    // App State
+    let currentUser = null;
+    let activeCategory = "exam";
+    let savedByCategory = { exam: null, bank: null, scheme: null, identity: null };
+    let currentPassPayload = null;
+
+    // Toast Helper
+    window.showToast = (msg) => {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.remove("translate-y-20", "opacity-0");
+      setTimeout(() => t.classList.add("translate-y-20", "opacity-0"), 3400);
+    };
+
+    // =========================================================
+    // CHECK IF PAGE OPENED VIA QR SCAN (#pass=...)
+    // =========================================================
+    function checkUrlHashForScannedPass() {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith("#pass=")) {
+        try {
+          const encoded = hash.replace("#pass=", "");
+          const decodedJson = decodeURIComponent(escape(atob(encoded)));
+          const payload = JSON.parse(decodedJson);
+          openScannedPassScreen(payload);
+          return true;
+        } catch (e) {
+          console.warn("Invalid pass hash:", e);
+        }
+      }
+      return false;
+    }
+
+    function openScannedPassScreen(payload) {
+      currentPassPayload = payload;
+      document.getElementById("mainPortalView").classList.add("hidden");
+      document.getElementById("scannedPassView").classList.remove("hidden");
+
+      document.getElementById("viewCategoryBadge").textContent = `✓ ${payload.categoryTitle || "VERIFIED CITIZEN PASS"}`;
+      document.getElementById("viewPassId").textContent = payload.passId || "FS-PASS";
+      document.getElementById("viewHolderName").textContent = payload.data?.fullName || "Verified Citizen";
+      document.getElementById("viewPassMeta").textContent = `Validity: ${payload.validity || "15m"} · Issued: ${new Date(payload.issuedAt || Date.now()).toLocaleString()}`;
+
+      const grid = document.getElementById("viewFieldsGrid");
+      grid.innerHTML = "";
+      const entries = Object.entries(payload.labeledData || payload.data || {});
+      entries.forEach(([label, val]) => {
+        if (!val) return;
+        const card = document.createElement("div");
+        card.className = "p-3 rounded-lg bg-[#FAF8F4] border border-[#E6E2D8]";
+        card.innerHTML = `
+          <div class="text-[10px] font-mono-code uppercase text-stone-500 font-semibold">${label}</div>
+          <div class="text-sm font-semibold text-[#12171D] mt-0.5 break-words">${val}</div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    window.exitScannedView = () => {
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+      document.getElementById("scannedPassView").classList.add("hidden");
+      document.getElementById("mainPortalView").classList.remove("hidden");
+    };
+
+    window.previewScannedPass = () => {
+      if (!currentPassPayload) {
+        window.showToast("⚠️ Save this form first to mint its QR Pass.");
+        return;
+      }
+      openScannedPassScreen(currentPassPayload);
+    };
+
+    window.copyAllScannedText = () => {
+      if (!currentPassPayload) return;
+      const lines = Object.entries(currentPassPayload.labeledData || {})
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\n");
+      navigator.clipboard.writeText(lines);
+      window.showToast("📋 All citizen fields copied to clipboard!");
+    };
+
+    // =========================================================
+    // FIREBASE AUTH (GOOGLE SIGN-IN + AUTO ANONYMOUS FALLBACK)
+    // =========================================================
+    function setCloudStatus(connected, label) {
+      const badge = document.getElementById("cloudStatusBadge");
+      const dot = document.getElementById("cloudStatusDot");
+      document.getElementById("cloudStatusText").textContent = label;
+      if (connected) {
+        badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-900 border border-emerald-200";
+        dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+      } else {
+        badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-900 border border-amber-200";
+        dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
+      }
+    }
+
+    window.signInWithGoogle = async () => {
+      if (currentUser && !currentUser.isAnonymous) {
+        await signOut(auth);
+        window.showToast("Signed out of Google account.");
+        return;
+      }
+      try {
+        await signInWithPopup(auth, googleProvider);
+        window.showToast("🎉 Signed in with Google! All saved forms synced.");
+      } catch (err) {
+        console.error("Google Sign-In note:", err);
+        window.showToast("⚠️ Enable Google Provider & add your GitHub domain in Firebase Auth.");
+      }
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUser = user;
+        if (user.isAnonymous) {
+          setCloudStatus(true, `Guest Cloud · UID ${user.uid.slice(0, 6)}`);
+          document.getElementById("googleBtnLabel").textContent = "Continue with Google";
+        } else {
+          setCloudStatus(true, `Google Synced · ${user.displayName || user.email}`);
+          document.getElementById("googleBtnLabel").textContent = `✓ ${user.displayName?.split(" ")[0] || "Account"} (Sign Out)`;
+        }
+        await loadAllCategoriesFromCloud();
+        renderCategoryForm(activeCategory);
+      } else {
+        try {
+          await signInAnonymously(auth);
+        } catch (err) {
+          setCloudStatus(false, "Offline / Local Mode");
+          renderCategoryForm(activeCategory);
+        }
+      }
+    });
+
+    async function loadAllCategoriesFromCloud() {
+      const cats = Object.keys(FORM_SCHEMAS);
+      for (const cat of cats) {
+        let loaded = null;
+        if (currentUser) {
+          try {
+            const snap = await getDoc(doc(db, "citizens", currentUser.uid, "serviceForms", cat));
+            if (snap.exists()) loaded = snap.data();
+          } catch (e) { /* fallback to local */ }
+        }
+        if (!loaded) {
+          const local = localStorage.getItem(`formsathi_cat_${cat}`);
+          if (local) loaded = JSON.parse(local);
+        }
+        savedByCategory[cat] = loaded;
+        updateCategoryBadge(cat, Boolean(loaded));
+      }
+    }
+
+    function updateCategoryBadge(cat, isSaved) {
+      const badge = document.getElementById(`badge-${cat}`);
+      if (!badge) return;
+      if (isSaved) {
+        badge.textContent = "✓ Saved";
+        badge.className = "text-[10px] font-mono-code px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold";
+      } else {
+        badge.textContent = "Not Saved";
+        badge.className = "text-[10px] font-mono-code px-2 py-0.5 rounded bg-stone-100 text-stone-600";
+      }
+    }
+
+    // =========================================================
+    // RENDER DEDICATED PURPOSE-BUILT FORM
+    // =========================================================
+    window.selectCategory = (cat) => {
+      activeCategory = cat;
+      document.querySelectorAll(".cat-card").forEach((el) => {
+        if (el.dataset.cat === cat) el.classList.add("cat-card-active");
+        else el.classList.remove("cat-card-active");
+      });
+      renderCategoryForm(cat);
+    };
+
+    function renderCategoryForm(cat) {
+      const schema = FORM_SCHEMAS[cat];
+      document.getElementById("activeFormTitle").textContent = schema.title;
+      document.getElementById("activeFormSubtitle").textContent = schema.subtitle;
+      document.getElementById("qrCardHeaderTag").textContent = `Step 3 · ${schema.passLabel}`;
+      document.getElementById("qrCardHeaderTitle").textContent = schema.passLabel;
+
+      const root = document.getElementById("dynamicFieldsRoot");
+      root.innerHTML = "";
+
+      const existing = savedByCategory[cat]?.data || {};
+
+      schema.sections.forEach((sec, idx) => {
+        const secDiv = document.createElement("div");
+        if (idx > 0) secDiv.className = "pt-4 border-t border-[#ECE8DF]";
+
+        let fieldsHtml = `<div class="grid sm:grid-cols-2 gap-3.5">`;
+        sec.fields.forEach((f) => {
+          const val = existing[f.id] || "";
+          const spanClass = f.full ? "sm:col-span-2" : "";
+          const reqAttr = f.required ? "required" : "";
+
+          if (f.type === "select") {
+            const opts = f.options.map((o) => `<option value="${o}" ${val === o ? "selected" : ""}>${o}</option>`).join("");
+            fieldsHtml += `
+              <div class="${spanClass}">
+                <label class="block text-xs font-semibold text-stone-700 mb-1">${f.label}</label>
+                <select id="field_${f.id}" class="w-full rounded-lg px-3 py-2 text-sm">${opts}</select>
+              </div>`;
+          } else {
+            fieldsHtml += `
+              <div class="${spanClass}">
+                <label class="block text-xs font-semibold text-stone-700 mb-1">${f.label}</label>
+                <input type="${f.type}" id="field_${f.id}" value="${val}" placeholder="${f.placeholder || ""}" ${reqAttr} class="w-full rounded-lg px-3 py-2 text-sm" />
+              </div>`;
+          }
+        });
+        fieldsHtml += `</div>`;
+
+        secDiv.innerHTML = `
+          <h3 class="text-xs font-mono-code uppercase tracking-wider font-bold text-[#0F2C59] mb-3 flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full bg-[#0F2C59] text-white inline-flex items-center justify-center text-[10px]">${sec.code}</span>
+            ${sec.heading}
+          </h3>
+          ${fieldsHtml}
+        `;
+        root.appendChild(secDiv);
+      });
+
+      if (savedByCategory[cat]) {
+        mintCategoryQR(savedByCategory[cat]);
+      } else {
+        resetQRDisplay(cat);
+      }
+    }
+
+    function resetQRDisplay(cat) {
+      currentPassPayload = null;
+      document.getElementById("qrCanvas").classList.add("hidden");
+      document.getElementById("qrPlaceholder").classList.remove("hidden");
+      document.getElementById("qrHolderName").textContent = "No Record Saved Yet";
+      document.getElementById("qrMetaLine").textContent = `Service: ${FORM_SCHEMAS[cat].passLabel} · Waiting`;
+      document.getElementById("passIdBadge").textContent = "FS-WAITING";
+    }
+
+    // Save Dedicated Form & Mint URL QR
+    document.getElementById("dynamicPurposeForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("saveAndMintBtn");
+      btn.disabled = true;
+      btn.innerHTML = "<span>⏳ Saving to Cloud...</span>";
+
+      const schema = FORM_SCHEMAS[activeCategory];
+      const data = {};
+      const labeledData = {};
+
+      schema.sections.forEach((sec) => {
+        sec.fields.forEach((f) => {
+          const el = document.getElementById(`field_${f.id}`);
+          const v = el ? el.value.trim() : "";
+          data[f.id] = v;
+          labeledData[f.label.replace(" *", "")] = v;
+        });
+      });
+
+      const passId = savedByCategory[activeCategory]?.passId ||
+        `FS-${activeCategory.toUpperCase()}-${Date.now().toString().slice(-4)}`;
+
+      const record = {
+        category: activeCategory,
+        categoryTitle: schema.title,
+        passId,
+        validity: document.getElementById("qrValidity").value,
+        issuedAt: new Date().toISOString(),
+        data,
+        labeledData
+      };
+
+      localStorage.setItem(`formsathi_cat_${activeCategory}`, JSON.stringify(record));
+      savedByCategory[activeCategory] = record;
+      updateCategoryBadge(activeCategory, true);
+
+      if (currentUser) {
+        try {
+          await setDoc(doc(db, "citizens", currentUser.uid, "serviceForms", activeCategory), {
+            ...record,
+            serverUpdatedAt: serverTimestamp()
+          }, { merge: true });
+          window.showToast(`✅ ${schema.passLabel} saved to Firebase & QR Minted!`);
+        } catch (err) {
+          window.showToast("✅ Saved locally & QR Minted!");
+        }
+      }
+
+      mintCategoryQR(record);
+      btn.disabled = false;
+      btn.innerHTML = "<span>☁️ Save Form &amp; Generate Dedicated QR</span>";
+    });
+
+    function mintCategoryQR(record) {
+      record.validity = document.getElementById("qrValidity").value;
+      currentPassPayload = record;
+
+      // Build Self-Contained Web URL so Google Lens opens a clean Citizen Pass Card
+      const jsonStr = JSON.stringify(record);
+      const base64Pass = btoa(unescape(encodeURIComponent(jsonStr)));
+      const baseUrl = window.location.href.split("#")[0];
+      const scannableUrl = `${baseUrl}#pass=${base64Pass}`;
+
+      document.getElementById("passIdBadge").textContent = record.passId;
+      document.getElementById("qrHolderName").textContent = record.data.fullName || "Verified Citizen";
+      document.getElementById("qrMetaLine").textContent = `${FORM_SCHEMAS[record.category].passLabel} · ${record.validity}`;
+
+      const canvas = document.getElementById("qrCanvas");
+      const placeholder = document.getElementById("qrPlaceholder");
+      placeholder.classList.add("hidden");
+      canvas.classList.remove("hidden");
+
+      new QRious({
+        element: canvas,
+        value: scannableUrl,
+        size: 225,
+        level: "L",
+        foreground: "#0F2C59",
+        background: "#FFFFFF"
+      });
+    }
+
+    window.refreshCurrentQR = () => {
+      if (savedByCategory[activeCategory]) {
+        mintCategoryQR(savedByCategory[activeCategory]);
+      }
+    };
+
+    window.fillDemoForActiveCategory = () => {
+      const demo = FORM_SCHEMAS[activeCategory].demo;
+      Object.entries(demo).forEach(([k, v]) => {
+        const el = document.getElementById(`field_${k}`);
+        if (el) el.value = v;
+      });
+      window.showToast("✨ Complete form auto-filled! Click 'Save Form & Generate Dedicated QR'.");
+    };
+
+    window.resetActiveForm = () => {
+      const schema = FORM_SCHEMAS[activeCategory];
+      schema.sections.forEach((sec) => {
+        sec.fields.forEach((f) => {
+          const el = document.getElementById(`field_${f.id}`);
+          if (el && el.tagName !== "SELECT") el.value = "";
+        });
+      });
+      resetQRDisplay(activeCategory);
+    };
+
+    window.downloadQRPng = () => {
+      const canvas = document.getElementById("qrCanvas");
+      if (canvas.classList.contains("hidden")) {
+        window.showToast("⚠️ Save this form first to generate its QR Pass.");
+        return;
+      }
+      const link = document.createElement("a");
+      link.download = `${currentPassPayload?.passId || "FormSathi-QR"}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      window.showToast("⬇️ Dedicated QR Pass downloaded!");
+    };
+
+    // Init
+    if (!checkUrlHashForScannedPass()) {
+      renderCategoryForm(activeCategory);
+    }
+  </script>
+</body>
+</html>
